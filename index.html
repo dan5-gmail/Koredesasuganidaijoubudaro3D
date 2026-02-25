@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html> 
+    <head>
+        <meta charset="UTF-8"> 
+        <title>3D World</title>
+        <style> 
+            body { margin: 0; overflow: hidden; }
+         
+            #crosshair { 
+                position: fixed;
+                top: 50%; 
+                left: 50%; 
+                width: 20px; 
+                height: 20px;
+                margin-left: -10px;
+                margin-top: -10px;
+                pointer-events: none;
+            } 
+            
+            #crosshair::before, 
+            #crosshair::after {
+                content: ""; 
+                position: 
+                    absolute; 
+                background: white; 
+            } 
+            #crosshair::before { 
+                left: 9px;
+                top: 0; 
+                width: 2px; 
+                height: 20px;
+            }
+            #crosshair::after {
+                top: 9px;
+                left: 0; 
+                width: 20px; 
+                height: 2px;
+            }
+        </style> 
+    </head> 
+    <body> 
+        <div id="crosshair"></div>
+        <script type="module" src="./main2.js"></script>
+    </body> 
+</html>
