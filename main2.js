@@ -1,5 +1,5 @@
 import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js'; 
-// import { PointerLockControls } from 'https://unpkg.com/three@0.160.0/examples/jsm/controls/PointerLockControls.js';
+import { PointerLockControls } from 'https://unpkg.com/three@0.160.0/examples/jsm/controls/PointerLockControls.js';
 
 // ===== シーン =====
 const scene = new THREE.Scene();
@@ -13,6 +13,11 @@ const camera = new THREE.PerspectiveCamera(
   1000
 );
 camera.position.set(5, 1.6, 5);
+
+const controls = new PointerLockControls(camera, document.body);
+scene.add(controls.getObject());
+
+document.addEventListener("click", () => {});
 // const controls = new PointerLockControls(camera, document.body);
 
 // document.addEventListener("click", () => {
@@ -64,18 +69,10 @@ function updatePlayer() {
  let speed = 0.15;
  if (keys["Shift"]) speed = 0.3;
 
- const direction = new THREE.Vector3();
- camera.getWorldDirection(direction);
- direction.y = 0;
- direction.normalize();
-
- const right = new THREE.Vector3();
- right.crossVectors(direction, camera.up);
-
- if (keys["w"]) camera.position.addScaledVector(direction, speed);
- if (keys["a"]) camera.position.addScaledVector(right, -speed);
- if (keys["s"]) camera.position.addScaledVector(direction, -speed);
- if (keys["d"]) camera.position.addScaledVector(right, speed);
+ if (keys["w"]) controls.moveForward(speed);
+ if (keys["a"]) controls.moveRight(-speed);
+ if (keys["s"]) controls.moveForward(-speed);
+ if (keys["d"]) controls.moveRight(speed);
  }
  
 // ===== ループ =====
