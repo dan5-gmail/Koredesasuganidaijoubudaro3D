@@ -21,6 +21,12 @@ let gravity = -0.01;
 let jumpPower = 0.25;
 let isOnGround = true;
 
+let wasOnGround = true;
+let landingBoostTimer = 0;
+let jumpBoost = 1.15;
+let airControl = 0.85;
+let landingBoost = 1.1;
+
 document.addEventListener("keydown", e => {
   keys[e.key.toLowerCase()] = true;
 
@@ -82,6 +88,18 @@ document.addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
 // ===== 更新 =====
 function updatePlayer() {
   let speed = keys["shift"] ? 0.3 : 0.15;
+  let speed = baseSpeed;
+
+  // jump・空中減速
+  if (!isOnGround){
+    speed *= airControl;
+  }
+
+  // 着地ブースト
+  if (landingBoostTimer > 0){
+    speed *= landingBoost;
+    landingBoostTimer--;
+  }
 
   if (keys["w"]) controls.moveForward(speed);
   if (keys["s"]) controls.moveForward(-speed);
@@ -94,11 +112,22 @@ function updatePlayer() {
 
   // 地面判定
   if (controls.getObject().position.y < 1.6){
+
+    if (!wasOnGround){
+      // 着地した瞬間
+      landingBoostTimer = 5;
+      // 着地時カメラ揺れ
+      camera.position.y -= 0.08;
+    }
+
     velocityY = 0;
     controls.getObject().position.y = 1.6;
     isOnGround = true;
-  }
+  } else {
+    isOnGround = false;
 }
+
+  wasOnGround = isOnGround;}
 
 // ===== ループ =====
 function animate() {
