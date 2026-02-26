@@ -87,7 +87,7 @@ document.addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
 
 // ===== 更新 =====
 function updatePlayer() {
-  let speed = keys["shift"] ? 0.3 : 0.15;
+  let baseSpeed = keys["shift"] ? 0.3 : 0.15;
   let speed = baseSpeed;
 
   // jump・空中減速
