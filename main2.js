@@ -15,32 +15,44 @@ const camera = new THREE.PerspectiveCamera(
 camera.position.set(5, 1.6, 5);
 
 // ===== コントロール =====
-
-let velocityY =0;
-let gravity = -0.01;
-let jumpPower = 0.25;
-let isOnGround = true;
-
-let wasOnGround = true;
-let landingBoostTimer = 0;
-let jumpBoost = 1.15;
-let airControl = 0.85;
-let landingBoost = 1.1;
-
-document.addEventListener("keydown", e => {
-  keys[e.key.toLowerCase()] = true;
-
-  if (e.code === "Space" && isOnGround){
-    velocityY =jumpPower;
-    isOnGround = false;
-  }
-});
-
 const controls = new PointerLockControls(camera, document.body);
 scene.add(controls.getObject());
 
 document.addEventListener("click", () => {
   controls.lock();
+});
+
+// ===== 物理パラメータ =====
+let velocityY = 0;
+let gravity = -0.01;
+let jumpPower = 0.25;
+let isOnGround = true;
+let wasOnGround = true;
+
+let landingBoostTimer = 0;
+let airControl = 0.85;
+let landingBoost = 1.1;
+
+const baseHeight = 1.6;
+let cameraOffsetY = 0; // 揺れ用
+
+// ===== 入力 =====
+const keys = {};
+
+document.addEventListener("keydown", e => {
+  keys[e.key.toLowerCase()] = true;
+
+  if (e.code === "Space" && isOnGround) {
+    velocityY = jumpPower;
+    isOnGround = false;
+
+    // ジャンプ時カメラ揺れ
+    cameraOffsetY += 0.05;
+  }
+});
+
+document.addEventListener("keyup", e => {
+  keys[e.key.toLowerCase()] = false;
 });
 
 // ===== レンダラー =====
@@ -80,23 +92,19 @@ for (let x = 0; x < worldSize; x++) {
   }
 }
 
-// ===== 入力 =====
-const keys = {};
-document.addEventListener("keydown", e => keys[e.key.toLowerCase()] = true);
-document.addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
-
 // ===== 更新 =====
 function updatePlayer() {
+
   let baseSpeed = keys["shift"] ? 0.3 : 0.15;
   let speed = baseSpeed;
 
-  // jump・空中減速
-  if (!isOnGround){
+  // 空中減速
+  if (!isOnGround) {
     speed *= airControl;
   }
 
   // 着地ブースト
-  if (landingBoostTimer > 0){
+  if (landingBoostTimer > 0) {
     speed *= landingBoost;
     landingBoostTimer--;
   }
@@ -106,28 +114,32 @@ function updatePlayer() {
   if (keys["a"]) controls.moveRight(-speed);
   if (keys["d"]) controls.moveRight(speed);
 
-  // 重力
+  // ===== 重力 =====
   velocityY += gravity;
   controls.getObject().position.y += velocityY;
 
-  // 地面判定
-  if (controls.getObject().position.y < 1.6){
+  // ===== 地面判定 =====
+  if (controls.getObject().position.y < baseHeight) {
 
-    if (!wasOnGround){
-      // 着地した瞬間
+    if (!wasOnGround) {
+      // 着地瞬間
       landingBoostTimer = 5;
-      // 着地時カメラ揺れ
-      camera.position.y -= 0.08;
+      cameraOffsetY -= 0.08; // 着地揺れ
     }
 
     velocityY = 0;
-    controls.getObject().position.y = 1.6;
+    controls.getObject().position.y = baseHeight;
     isOnGround = true;
   } else {
     isOnGround = false;
-}
+  }
 
-  wasOnGround = isOnGround;}
+  wasOnGround = isOnGround;
+
+  // ===== カメラ揺れを自然に戻す =====
+  cameraOffsetY *= 0.85;
+  camera.position.y = cameraOffsetY;
+}
 
 // ===== ループ =====
 function animate() {
