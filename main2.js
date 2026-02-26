@@ -17,7 +17,7 @@ camera.position.set(5, 1.6, 5);
 const controls = new PointerLockControls(camera, document.body);
 scene.add(controls.getObject());
 
-document.addEventListener("click", () => {});
+// document.addEventListener("click", () => {});
 // const controls = new PointerLockControls(camera, document.body);
 
 // document.addEventListener("click", () => {
