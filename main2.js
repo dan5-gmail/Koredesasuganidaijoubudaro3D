@@ -21,23 +21,28 @@ document.addEventListener("click", () => {
   controls.lock();
 });
 
-// ===== 初期高さ =====
-const baseHeight = 1.6;
-controls.getObject().position.set(5, baseHeight, 5);
+// ===== ワールド定義 =====
+const groundHeight = 0.1;
+const groundTop = groundHeight / 2; // 0.05
+const eyeHeight = 1.6;
+
+// プレイヤーの足元Y
+const playerBaseY = groundTop + eyeHeight;
+
+// ===== 初期位置 =====
+controls.getObject().position.set(5, playerBaseY, 5);
 
 // ===== 物理 =====
 let velocityY = 0;
-const gravity = -0.01;
-const jumpPower = 0.25;
+const gravity = -0.015;
+const jumpPower = 0.35;
 
 let isOnGround = true;
 let wasOnGround = true;
 
 let landingBoostTimer = 0;
-const airControl = 0.85;
-const landingBoost = 1.1;
 
-// カメラ揺れ用
+// カメラ揺れ
 let cameraOffsetY = 0;
 
 // ===== 入力 =====
@@ -49,9 +54,7 @@ document.addEventListener("keydown", e => {
   if (e.code === "Space" && isOnGround) {
     velocityY = jumpPower;
     isOnGround = false;
-
-    // ジャンプ揺れ
-    cameraOffsetY += 0.05;
+    cameraOffsetY += 0.06;
   }
 });
 
@@ -65,51 +68,44 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
 // ===== 光 =====
-const light = new THREE.DirectionalLight(0xffffff, 1);
-light.position.set(20, 30, 10);
-scene.add(light);
+scene.add(new THREE.DirectionalLight(0xffffff, 1));
+scene.add(new THREE.AmbientLight(0xffffff, 0.3));
 
-const ambient = new THREE.AmbientLight(0xffffff, 0.3);
-scene.add(ambient);
-
-// ===== 地面 =====
+// ===== 地面生成 =====
 const worldSize = 100;
 
 for (let x = 0; x < worldSize; x++) {
   for (let z = 0; z < worldSize; z++) {
 
     const tile = new THREE.Mesh(
-      new THREE.BoxGeometry(1, 0.1, 1),
+      new THREE.BoxGeometry(1, groundHeight, 1),
       new THREE.MeshLambertMaterial({ color: 0x228B22 })
     );
+
     tile.position.set(x, 0, z);
     scene.add(tile);
 
+    // 草（30cm）
     if (Math.random() < 0.25) {
       const grass = new THREE.Mesh(
-        new THREE.BoxGeometry(0.1, 0.6, 0.1),
+        new THREE.BoxGeometry(0.1, 0.3, 0.1),
         new THREE.MeshLambertMaterial({ color: 0x00ff00 })
       );
-      grass.position.set(x, 0.35, z);
+      grass.position.set(x, groundTop + 0.15, z);
       scene.add(grass);
     }
   }
 }
 
-// ===== 更新 =====
+// ===== 更新処理 =====
 function updatePlayer() {
 
-  let baseSpeed = keys["shift"] ? 0.3 : 0.15;
-  let speed = baseSpeed;
+  let speed = keys["shift"] ? 0.3 : 0.15;
 
-  // 空中減速
-  if (!isOnGround) {
-    speed *= airControl;
-  }
+  if (!isOnGround) speed *= 0.85;
 
-  // 着地ブースト
   if (landingBoostTimer > 0) {
-    speed *= landingBoost;
+    speed *= 1.1;
     landingBoostTimer--;
   }
 
@@ -118,30 +114,30 @@ function updatePlayer() {
   if (keys["a"]) controls.moveRight(-speed);
   if (keys["d"]) controls.moveRight(speed);
 
-  // ===== 重力 =====
+  // 重力
   velocityY += gravity;
   controls.getObject().position.y += velocityY;
 
-  // ===== 地面判定 =====
-  if (controls.getObject().position.y <= baseHeight) {
+  // 地面判定
+  if (controls.getObject().position.y <= playerBaseY) {
 
     if (!wasOnGround) {
-      // 着地瞬間
       landingBoostTimer = 5;
       cameraOffsetY -= 0.08;
     }
 
     velocityY = 0;
-    controls.getObject().position.y = baseHeight;
+    controls.getObject().position.y = playerBaseY;
     isOnGround = true;
+
   } else {
     isOnGround = false;
   }
 
   wasOnGround = isOnGround;
 
-  // ===== カメラ揺れ処理（安全構造） =====
-  cameraOffsetY *= 0.85;  // 減衰
+  // 揺れ減衰
+  cameraOffsetY *= 0.85;
   camera.position.y = cameraOffsetY;
 }
 
