@@ -12,7 +12,6 @@ const camera = new THREE.PerspectiveCamera(
   0.1,
   1000
 );
-camera.position.set(5, 1.6, 5);
 
 // ===== コントロール =====
 const controls = new PointerLockControls(camera, document.body);
@@ -22,19 +21,24 @@ document.addEventListener("click", () => {
   controls.lock();
 });
 
-// ===== 物理パラメータ =====
+// ===== 初期高さ =====
+const baseHeight = 1.6;
+controls.getObject().position.set(5, baseHeight, 5);
+
+// ===== 物理 =====
 let velocityY = 0;
-let gravity = -0.01;
-let jumpPower = 0.25;
+const gravity = -0.01;
+const jumpPower = 0.25;
+
 let isOnGround = true;
 let wasOnGround = true;
 
 let landingBoostTimer = 0;
-let airControl = 0.85;
-let landingBoost = 1.1;
+const airControl = 0.85;
+const landingBoost = 1.1;
 
-const baseHeight = 1.6;
-let cameraOffsetY = 0; // 揺れ用
+// カメラ揺れ用
+let cameraOffsetY = 0;
 
 // ===== 入力 =====
 const keys = {};
@@ -46,7 +50,7 @@ document.addEventListener("keydown", e => {
     velocityY = jumpPower;
     isOnGround = false;
 
-    // ジャンプ時カメラ揺れ
+    // ジャンプ揺れ
     cameraOffsetY += 0.05;
   }
 });
@@ -119,12 +123,12 @@ function updatePlayer() {
   controls.getObject().position.y += velocityY;
 
   // ===== 地面判定 =====
-  if (controls.getObject().position.y < baseHeight) {
+  if (controls.getObject().position.y <= baseHeight) {
 
     if (!wasOnGround) {
       // 着地瞬間
       landingBoostTimer = 5;
-      cameraOffsetY -= 0.08; // 着地揺れ
+      cameraOffsetY -= 0.08;
     }
 
     velocityY = 0;
@@ -136,8 +140,8 @@ function updatePlayer() {
 
   wasOnGround = isOnGround;
 
-  // ===== カメラ揺れを自然に戻す =====
-  cameraOffsetY *= 0.85;
+  // ===== カメラ揺れ処理（安全構造） =====
+  cameraOffsetY *= 0.85;  // 減衰
   camera.position.y = cameraOffsetY;
 }
 
