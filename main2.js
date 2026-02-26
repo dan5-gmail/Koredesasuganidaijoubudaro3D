@@ -15,6 +15,21 @@ const camera = new THREE.PerspectiveCamera(
 camera.position.set(5, 1.6, 5);
 
 // ===== コントロール =====
+
+let velocityY =0;
+let gravity = -0.01;
+let jumpPower = 0.25;
+let isOnGround = true;
+
+document.addEventListener("keydown", e => {
+  keys[e.key.toLowerCase()] = true;
+
+  if (e.code === "Space" && isOnGround){
+    velocityY =jumpPower;
+    isOnGround = false;
+  }
+});
+
 const controls = new PointerLockControls(camera, document.body);
 scene.add(controls.getObject());
 
@@ -72,6 +87,17 @@ function updatePlayer() {
   if (keys["s"]) controls.moveForward(-speed);
   if (keys["a"]) controls.moveRight(-speed);
   if (keys["d"]) controls.moveRight(speed);
+
+  // 重力
+  velocityY += gravity;
+  controls.getObject().position.y += velocityY;
+
+  // 地面判定
+  if (controls.getObject().position.y < 1.6){
+    velocityY = 0;
+    controls.getObject().position.y = 1.6;
+    isOnGround = true;
+  }
 }
 
 // ===== ループ =====
