@@ -1,57 +1,124 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
-  <title>3D World</title>
+<meta charset="UTF-8">
+<title>3D World</title>
 
-  <style>
-    body { margin: 0; overflow: hidden; }
+<style>
+body {
+  margin: 0;
+  overflow: hidden;
+  background: black;
+}
 
-    #crosshair {
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      width: 20px;
-      height: 20px;
-      margin-left: -10px;
-      margin-top: -10px;
-      pointer-events: none;
-      z-index: 1000;
-    }
+/* ===== クロスヘア（PC用） ===== */
+#crosshair {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  width: 20px;
+  height: 20px;
+  margin-left: -10px;
+  margin-top: -10px;
+  pointer-events: none;
+  z-index: 1000;
+}
 
-    #crosshair::before,
-    #crosshair::after {
-      content: "";
-      position: absolute;
-      background: white;
-    }
+#crosshair::before,
+#crosshair::after {
+  content: "";
+  position: absolute;
+  background: white;
+}
 
-    #crosshair::before {
-      left: 9px;
-      top: 0;
-      width: 2px;
-      height: 20px;
-    }
+#crosshair::before {
+  left: 9px;
+  top: 0;
+  width: 2px;
+  height: 20px;
+}
 
-    #crosshair::after {
-      top: 9px;
-      left: 0;
-      width: 20px;
-      height: 2px;
-    }
-  </style>
-  <script type="importmap">
-  {
-    "imports": {
-      "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
-    }
+#crosshair::after {
+  top: 9px;
+  left: 0;
+  width: 20px;
+  height: 2px;
+}
+
+/* ===== モバイルUI ===== */
+#mobileUI {
+  position: fixed;
+  bottom: 30px;
+  left: 30px;
+  display: none;
+  z-index: 2000;
+}
+
+#mobileUI button {
+  width: 60px;
+  height: 60px;
+  margin: 5px;
+  font-size: 20px;
+  border-radius: 10px;
+  border: none;
+  background: rgba(255,255,255,0.7);
+}
+
+#jumpBtn {
+  position: fixed;
+  bottom: 40px;
+  right: 40px;
+  width: 70px;
+  height: 70px;
+  font-size: 20px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255,255,255,0.7);
+  display: none;
+  z-index: 2000;
+}
+</style>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
   }
-  </script>
+}
+</script>
 
 </head>
 
 <body>
-  <div id="crosshair"></div>
-  <script type="module" src="./main2.js"></script>
+
+<!-- クロスヘア -->
+<div id="crosshair"></div>
+
+<!-- モバイル移動ボタン -->
+<div id="mobileUI">
+  <div>
+    <button id="forward">↑</button>
+  </div>
+  <div>
+    <button id="left">←</button>
+    <button id="back">↓</button>
+    <button id="right">→</button>
+  </div>
+</div>
+
+<button id="jumpBtn">J</button>
+
+<script type="module">
+const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+if (isMobile) {
+  document.getElementById("mobileUI").style.display = "block";
+  document.getElementById("jumpBtn").style.display = "block";
+  document.getElementById("crosshair").style.display = "none";
+}
+</script>
+
+<script type="module" src="./main2.js"></script>
+
 </body>
 </html>
