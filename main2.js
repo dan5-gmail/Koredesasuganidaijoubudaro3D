@@ -22,7 +22,7 @@ scene.add(controls.getObject());
 document.addEventListener("click", () => controls.lock());
 
 // ===== ワールド =====
-const groundHeight = 1; // ← 今回は1mのブロックにする（わかりやすく）
+const groundHeight = 1; // ←仮の1m
 const eyeHeight = 1.6;
 
 // 地面生成
@@ -86,7 +86,7 @@ function updatePlayer() {
   velocityY += gravity;
   controls.getObject().position.y += velocityY;
 
-  // 地面判定（地面上面は Y=0）
+  // 地面判定（地面上面は Y=0設定）
   if (controls.getObject().position.y <= eyeHeight) {
     velocityY = 0;
     controls.getObject().position.y = eyeHeight;
