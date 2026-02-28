@@ -1,167 +1,173 @@
-import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
-import { PointerLockControls } from 'https://unpkg.com/three@0.160.0/examples/jsm/controls/PointerLockControls.js';
+import * as THREE from "three";
+import { PointerLockControls } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/PointerLockControls.js";
 
-console.log(THREE);
-// ===== モバイル判定 =====
-const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+/*==============
+基本セットアップ
+===========*/
 
-// ===== 基本セット =====
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87CEEB);
 
-const camera = new THREE.PerspectiveCamera(
-  75,
-  window.innerWidth / window.innerHeight,
-  0.1,
-  1000
-);
+const camera = new THREE.Perspectivecamera(75, innerWidth / innerHeight, 0.1, 1000);
+camera.position.set(5, 1.6, 5);
 
-const renderer = new THREE.WebGLRenderer();
-renderer.setSize(window.innerWidth, window.innerHeight);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(innerWidth, innerHeight);
 document.body.appendChild(renderer.domElement);
 
-// ===== コントロール =====
-let controls;
+/*============
+光（ライト）
+============*/
 
-if (!isMobile) {
-  controls = new PointerLockControls(camera, document.body);
-  scene.add(controls.getObject());
-  document.addEventListener("click", () => controls.lock());
-} else {
-  controls = {
-    getObject: () => camera,
-    moveForward: (d) => camera.translateZ(-d),
-    moveRight: (d) => camera.translateX(d)
-  };
-}
+scene.add(new THREE.AmbientLight(0xffffff, 0.4));
 
-// ===== ワールド =====
-const groundHeight = 1;
-const eyeHeight = 1.6;
-const worldSize = 50;
+const light = new THREE.DirectionalLight(0xffffff, 1);
+light.position.set(10, 20, 10);
+scene.add(light);
 
-for (let x = 0; x < worldSize; x++) {
-  for (let z = 0; z < worldSize; z++) {
-    const tile = new THREE.Mesh(
-      new THREE.BoxGeometry(1, groundHeight, 1),
-      new THREE.MeshLambertMaterial({ color: 0x228B22 })
-    );
-    tile.position.set(x, -groundHeight / 2, z);
+/*===========
+地面
+=============*/
+for (let x = 0; x < 50; x++) {
+  for (let x = 0; z < 50; z++){
+   const tile = new THREE.Mesh(
+     new THREE.BoxGeometry(1, 1, 1),
+     new THREE.MeshLambertMaterial({ color: 0x228B22})
+   );
+    tile.position.set(x, -0.5, z);
     scene.add(tile);
   }
 }
 
-// ===== 光 =====
-const light = new THREE.DirectionalLight(0xffffff, 1);
-light.position.set(10, 20, 10);
-scene.add(light);
-scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+/*==============
+FPSコントロール
+=============*/
+const controls = new PointerLockControls(camera, document.body);
+scene.add(controls.getObject());
 
-// ===== 初期位置 =====
-controls.getObject().position.set(5, eyeHeight, 5);
+document.addEventListener("click", () => controls.lock());
 
-// ===== 物理 =====
-let velocityY = 0;
-const gravity = -0.02;
-const jumpPower = 0.5;
-let isOnGround = true;
+/*=================
+入力
+=================*/
 
 const keys = {};
+document.addEventListener("keydown", e => keys[e.key.toLowerCase()] = true);
+document.addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
 
-// ===== キーボード操作（PC用） =====
-document.addEventListener("keydown", e => {
-  keys[e.key.toLowerCase()] = true;
+/*==============
+物理パラメーター
+================*/
+const velocity = new THREE.Vector3();
+const direction = new THREE.Vector3();
 
-  if (e.code === "Space" && isOnGround) {
-    velocityY = jumpPower;
-    isOnGround = false;
+const moveAcceleration = 40;
+const friction = 12;
+const airControl = 0.3;
+const gravity = -20;
+const jumpPower = 8;
+
+let onGround = true;
+
+/*=================
+FOV設定
+==================*/
+
+const baseFov = 75;
+const sprintFov = 85;
+const forLerpSpeed = 8;
+
+/*================
+ヘッドボブ設定
+=================*/
+
+let bobTIme = 0;
+const bobAmount = 0.04;
+const bobSpeed = 10;
+const eyeHeight = 1.6;
+
+/*=============
+更新処理
+===============*/
+
+const clock = new THREE.Clock();
+
+function update(delta) {
+
+  direction.set(0, 0, 0);
+
+  if (keys["w"]) direction.z -= 1;
+  if (keys["s"]) direction.z += 1;
+  if (keys["a"]) direction.x -= 1;
+  if (keys["d"]) direction.x += 1;
+
+  direction.normalize();
+
+  const isMoving = direction.length() > 0;
+  const isSprinting = keys["shift"] && isMoving;
+
+  const control = onGround ? 1 : airControl;
+
+  velocity.x += direction.x * moveAcceleration * delta * control;
+  velocity.z += direction.z * moveAcceleration * delta * control;
+
+  velocity.x -= direction.x * friction * delta;
+  velocity.z -= direction.z * friction * delta;
+
+  controls.moveRight(velocity.x * delta);
+  controls.moveForward(velocity.z * delta)
+  /**======重力========**/
+
+  velocity.y += gravity * delta;
+  camera.position.y += velocity.y * delta;
+
+  if (camera.position.y <= eyeHeight) {
+    velocity.y =0;
+    camera.position.y = eyeHeight;
+    onGround = true;
   }
-});
 
-document.addEventListener("keyup", e => {
-  keys[e.key.toLowerCase()] = false;
-});
+  if (keys[" "] && onGround){
+    velocity.y = jumpPower;
+    onGround = false;
+  }
 
-// ===== モバイルボタン操作 =====
-if (isMobile) {
+  /*=====Fov変化===========*/
 
-  const bindButton = (id, key) => {
-    const btn = document.getElementById(id);
+  const targetFov = isSprinting ? sprintFov : baseFov;
+  camera.fov += (targetFov - camera.fov) * fovLerpSpeed * delta;
+  camera.updateProjectionMatrix();
 
-    btn.addEventListener("touchstart", () => keys[key] = true);
-    btn.addEventListener("touchend", () => keys[key] = false);
-  };
+  /*=====ヘッドボブ======*/
 
-  bindButton("forward", "w");
-  bindButton("back", "s");
-  bindButton("left", "a");
-  bindButton("right", "d");
-
-  document.getElementById("jumpBtn").addEventListener("touchstart", () => {
-    if (isOnGround) {
-      velocityY = jumpPower;
-      isOnGround = false;
-    }
-  });
-
-  // スワイプ視点操作
-  let touchX = 0;
-  let touchY = 0;
-
-  document.addEventListener("touchstart", e => {
-    touchX = e.touches[0].clientX;
-    touchY = e.touches[0].clientY;
-  });
-
-  document.addEventListener("touchmove", e => {
-    const dx = e.touches[0].clientX - touchX;
-    const dy = e.touches[0].clientY - touchY;
-
-    touchX = e.touches[0].clientX;
-    touchY = e.touches[0].clientY;
-
-    camera.rotation.y -= dx * 0.003;
-    camera.rotation.x -= dy * 0.003;
-
-    camera.rotation.x = Math.max(
-      -Math.PI/2,
-      Math.min(Math.PI/2, camera.rotation.x)
-    );
-  });
+  if (isMoving && onGround) {
+    bobTime += delta * bobSpeed * (isSprinting ? 1.5 : 1);
+    camera.position.y = eyeHeight + Math.sin(bobTime) * bobAmout;
+  } else {
+    bobTime = 0;
+    camera.position.y += (eyeHeight - camera.position.y) * 10 * delta;
+  }
 }
 
-// ===== プレイヤー更新 =====
-function updatePlayer() {
+/*=================
+アニメーションループ
+=====================*/
 
-  const speed = keys["shift"] ? 0.3 : 0.15;
-
-  if (keys["w"]) controls.moveForward(speed);
-  if (keys["s"]) controls.moveForward(-speed);
-  if (keys["a"]) controls.moveRight(-speed);
-  if (keys["d"]) controls.moveRight(speed);
-
-  velocityY += gravity;
-  controls.getObject().position.y += velocityY;
-
-  if (controls.getObject().position.y <= eyeHeight) {
-    velocityY = 0;
-    controls.getObject().position.y = eyeHeight;
-    isOnGround = true;
-  }
-}
-
-// ===== アニメーション =====
 function animate() {
   requestAnimationFrame(animate);
-  updatePlayer();
+  const delta = clock.getData();
+  update(delta);
   renderer.render(scene, camera);
 }
 
 animate();
 
-// ===== リサイズ対応 =====
+/*=============
+リサイズ対応
+============*/
+
 window.addEventListener("resize", () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setSize(innerWidth, innerHeight);
 });
