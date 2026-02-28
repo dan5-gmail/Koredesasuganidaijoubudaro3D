@@ -12,7 +12,7 @@ body {
   background: black;
 }
 
-/* ===== クロスヘア（PC用） ===== */
+/* クロスヘア */
 #crosshair {
   position: fixed;
   top: 50%;
@@ -24,21 +24,18 @@ body {
   pointer-events: none;
   z-index: 1000;
 }
-
 #crosshair::before,
 #crosshair::after {
   content: "";
   position: absolute;
   background: white;
 }
-
 #crosshair::before {
   left: 9px;
   top: 0;
   width: 2px;
   height: 20px;
 }
-
 #crosshair::after {
   top: 9px;
   left: 0;
@@ -46,73 +43,164 @@ body {
   height: 2px;
 }
 
-/* ===== モバイルUI ===== */
-#mobileUI {
-  position: fixed;
-  bottom: 30px;
-  left: 30px;
-  display: flex;        /* 最初から表示 */
-  flex-direction: column;
-  z-index: 2000;
-}
-
-#mobileUI button {
-  width: 60px;
-  height: 60px;
-  margin: 5px;
-  font-size: 20px;
-  border-radius: 10px;
-  border: none;
-  background: rgba(255,255,255,0.7);
-}
-
-#jumpBtn {
+/* ジョイスティック位置 */
+#joystickZone {
   position: fixed;
   bottom: 40px;
-  right: 40px;
-  width: 70px;
-  height: 70px;
-  font-size: 20px;
-  border-radius: 50%;
-  border: none;
-  background: rgba(255,255,255,0.7);
+  left: 40px;
+  width: 150px;
+  height: 150px;
   z-index: 2000;
 }
 </style>
-
 </head>
 
 <body>
 
 <div id="crosshair"></div>
-
-<div id="mobileUI">
-  <div>
-    <button id="forward">↑</button>
-  </div>
-  <div>
-    <button id="left">←</button>
-    <button id="back">↓</button>
-    <button id="right">→</button>
-  </div>
-</div>
-
-<button id="jumpBtn">J</button>
+<div id="joystickZone"></div>
 
 <script type="module">
-/* ===== タッチ端末判定 ===== */
-const isTouch = ('ontouchstart' in window);
 
-/* タッチ端末じゃなければモバイルUIを消す */
-if (!isTouch) {
-  document.getElementById("mobileUI").style.display = "none";
-  document.getElementById("jumpBtn").style.display = "none";
-} else {
-  document.getElementById("crosshair").style.display = "none";
+import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
+import { PointerLockControls } from 'https://unpkg.com/three@0.160.0/examples/jsm/controls/PointerLockControls.js';
+
+const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+// ===== シーン =====
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x87CEEB);
+
+const camera = new THREE.PerspectiveCamera(
+  75,
+  window.innerWidth / window.innerHeight,
+  0.1,
+  1000
+);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+// ===== 光 =====
+scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+const light = new THREE.DirectionalLight(0xffffff, 1);
+light.position.set(10, 20, 10);
+scene.add(light);
+
+// ===== 地面 =====
+const worldSize = 50;
+for (let x = 0; x < worldSize; x++) {
+  for (let z = 0; z < worldSize; z++) {
+    const tile = new THREE.Mesh(
+      new THREE.BoxGeometry(1, 1, 1),
+      new THREE.MeshLambertMaterial({ color: 0x228B22 })
+    );
+    tile.position.set(x, -0.5, z);
+    scene.add(tile);
+  }
 }
+
+// ===== コントロール =====
+let controls;
+let moveForward = 0;
+let moveRight = 0;
+
+if (!isMobile) {
+  controls = new PointerLockControls(camera, document.body);
+  scene.add(controls.getObject());
+  document.addEventListener("click", () => controls.lock());
+  document.getElementById("joystickZone").style.display = "none";
+} else {
+  controls = { getObject: () => camera };
+  document.getElementById("crosshair").style.display = "none";
+
+  const script = document.createElement("script");
+  script.src = "https://cdn.jsdelivr.net/npm/nipplejs@0.9.0/dist/nipplejs.min.js";
+  document.body.appendChild(script);
+
+  script.onload = () => {
+    const joystick = nipplejs.create({
+      zone: document.getElementById("joystickZone"),
+      mode: 'static',
+      position: { left: '75px', top: '75px' },
+      color: 'white'
+    });
+
+    joystick.on('move', (evt, data) => {
+      moveForward = -data.vector.y;
+      moveRight = data.vector.x;
+    });
+
+    joystick.on('end', () => {
+      moveForward = 0;
+      moveRight = 0;
+    });
+  };
+}
+
+// ===== 初期位置 =====
+camera.position.set(5, 1.6, 5);
+
+// ===== 物理 =====
+let velocityY = 0;
+const gravity = -0.02;
+const jumpPower = 0.5;
+let isOnGround = true;
+
+const keys = {};
+
+document.addEventListener("keydown", e => {
+  keys[e.key.toLowerCase()] = true;
+  if (e.code === "Space" && isOnGround) {
+    velocityY = jumpPower;
+    isOnGround = false;
+  }
+});
+document.addEventListener("keyup", e => {
+  keys[e.key.toLowerCase()] = false;
+});
+
+// ===== 更新 =====
+function updatePlayer() {
+
+  const speed = keys["shift"] ? 0.3 : 0.15;
+
+  if (!isMobile) {
+    if (keys["w"]) controls.moveForward(speed);
+    if (keys["s"]) controls.moveForward(-speed);
+    if (keys["a"]) controls.moveRight(-speed);
+    if (keys["d"]) controls.moveRight(speed);
+  } else {
+    camera.translateZ(moveForward * 0.15);
+    camera.translateX(moveRight * 0.15);
+  }
+
+  velocityY += gravity;
+  camera.position.y += velocityY;
+
+  if (camera.position.y <= 1.6) {
+    velocityY = 0;
+    camera.position.y = 1.6;
+    isOnGround = true;
+  }
+}
+
+// ===== ループ =====
+function animate() {
+  requestAnimationFrame(animate);
+  updatePlayer();
+  renderer.render(scene, camera);
+}
+animate();
+
+// ===== リサイズ =====
+window.addEventListener("resize", () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
 </script>
-
-<script type="module" src="./main2.js"></script>
-
 </body>
 </html>
