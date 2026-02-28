@@ -1,7 +1,8 @@
 <!DOCTYPE html>
-<html>
+<html lang="ja">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>3D World</title>
 
 <style>
@@ -50,7 +51,8 @@ body {
   position: fixed;
   bottom: 30px;
   left: 30px;
-  display: none;
+  display: flex;        /* 最初から表示 */
+  flex-direction: column;
   z-index: 2000;
 }
 
@@ -74,27 +76,16 @@ body {
   border-radius: 50%;
   border: none;
   background: rgba(255,255,255,0.7);
-  display: none;
   z-index: 2000;
 }
 </style>
-
-<script type="importmap">
-{
-  "imports": {
-    "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
-  }
-}
-</script>
 
 </head>
 
 <body>
 
-<!-- クロスヘア -->
 <div id="crosshair"></div>
 
-<!-- モバイル移動ボタン -->
 <div id="mobileUI">
   <div>
     <button id="forward">↑</button>
@@ -109,11 +100,14 @@ body {
 <button id="jumpBtn">J</button>
 
 <script type="module">
-const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+/* ===== タッチ端末判定 ===== */
+const isTouch = ('ontouchstart' in window);
 
-if (isMobile) {
-  document.getElementById("mobileUI").style.display = "block";
-  document.getElementById("jumpBtn").style.display = "block";
+/* タッチ端末じゃなければモバイルUIを消す */
+if (!isTouch) {
+  document.getElementById("mobileUI").style.display = "none";
+  document.getElementById("jumpBtn").style.display = "none";
+} else {
   document.getElementById("crosshair").style.display = "none";
 }
 </script>
