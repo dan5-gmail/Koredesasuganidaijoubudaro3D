@@ -1,9 +1,9 @@
 import * as THREE from "three";
 import { PointerLockControls } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/PointerLockControls.js";
 
-/* ========================
+/*========================
    基本セットアップ
-======================== */
+========================*/
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87CEEB);
@@ -25,9 +25,9 @@ const light = new THREE.DirectionalLight(0xffffff, 1);
 light.position.set(10, 20, 10);
 scene.add(light);
 
-/* ========================
+/*========================
    地面
-======================== */
+========================*/
 
 for (let x = 0; x < 50; x++) {
   for (let z = 0; z < 50; z++) {
@@ -40,26 +40,26 @@ for (let x = 0; x < 50; x++) {
   }
 }
 
-/* ========================
+/*========================
    FPSコントロール
-======================== */
+========================*/
 
 const controls = new PointerLockControls(camera, document.body);
 scene.add(controls.getObject());
 
 document.addEventListener("click", () => controls.lock());
 
-/* ========================
+/*========================
    入力
-======================== */
+========================*/
 
 const keys = {};
 document.addEventListener("keydown", e => keys[e.key.toLowerCase()] = true);
 document.addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
 
-/* ========================
+/*========================
    物理パラメータ
-======================== */
+========================*/
 
 const velocity = new THREE.Vector3();
 const direction = new THREE.Vector3();
@@ -72,26 +72,26 @@ const jumpPower = 8;
 
 let onGround = true;
 
-/* ========================
+/*========================
    FOV設定
-======================== */
+========================*/
 
 const baseFov = 75;
 const sprintFov = 85;
 const fovLerpSpeed = 8;
 
-/* ========================
+/*========================
    ヘッドボブ設定
-======================== */
+========================*/
 
 let bobTime = 0;
 const bobAmount = 0.04;
 const bobSpeed = 10;
 const eyeHeight = 1.6;
 
-/* ========================
+/*========================
    更新処理
-======================== */
+========================*/
 
 const clock = new THREE.Clock();
 
@@ -153,9 +153,9 @@ function update(delta) {
   }
 }
 
-/* ========================
+/*========================
    アニメーションループ
-======================== */
+========================*/
 
 function animate() {
   requestAnimationFrame(animate);
@@ -166,9 +166,9 @@ function animate() {
 
 animate();
 
-/* ========================
+/*========================
    リサイズ対応
-======================== */
+========================*/
 
 window.addEventListener("resize", () => {
   camera.aspect = innerWidth / innerHeight;
