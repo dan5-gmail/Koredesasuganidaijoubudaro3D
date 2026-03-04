@@ -76,6 +76,9 @@ const jumpPower = 9;
 let onGround = true;
 const eyeHeight = 1.6;
 
+/* ★ここが重要★ */
+let bodyY = eyeHeight;
+
 /* ========================
    FOV
 ======================== */
@@ -90,7 +93,7 @@ const fovSpeed = 8;
 
 let bobTime = 0;
 let bobOffset = 0;
-const bobAmount = 0.08;   // ← 揺れ量（確実に見える値）
+const bobAmount = 0.1;
 const bobSpeed = 12;
 
 /* ========================
@@ -116,12 +119,10 @@ function update(delta) {
   const accel = isSprinting ? sprintAccel : walkAccel;
   const control = onGround ? 1 : airControl;
 
-  /* === 水平方向加速 === */
+  /* === 水平移動 === */
 
   velocity.x += direction.x * accel * delta * control;
   velocity.z += direction.z * accel * delta * control;
-
-  /* === 摩擦（自然減速） === */
 
   velocity.x -= velocity.x * friction * delta;
   velocity.z -= velocity.z * friction * delta;
@@ -129,14 +130,14 @@ function update(delta) {
   controls.moveRight(velocity.x * delta);
   controls.moveForward(velocity.z * delta);
 
-  /* === 重力 === */
+  /* === 重力（bodyYのみ更新） === */
 
   velocity.y += gravity * delta;
-  let baseY = player.position.y + velocity.y * delta;
+  bodyY += velocity.y * delta;
 
-  if (baseY <= eyeHeight) {
+  if (bodyY <= eyeHeight) {
     velocity.y = 0;
-    baseY = eyeHeight;
+    bodyY = eyeHeight;
     onGround = true;
   }
 
@@ -155,11 +156,11 @@ function update(delta) {
     bobOffset += (0 - bobOffset) * 12 * delta;
   }
 
-  /* === Y合成（これが超重要） === */
+  /* === 合成（ここが命） === */
 
-  player.position.y = baseY + bobOffset;
+  player.position.y = bodyY + bobOffset;
 
-  /* === FOV変化 === */
+  /* === FOV === */
 
   const targetFov = isSprinting ? sprintFov : baseFov;
   camera.fov += (targetFov - camera.fov) * fovSpeed * delta;
