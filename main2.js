@@ -18,7 +18,6 @@ document.body.appendChild(renderer.domElement);
 ======================== */
 
 scene.add(new THREE.AmbientLight(0xffffff, 0.4));
-
 const light = new THREE.DirectionalLight(0xffffff, 1);
 light.position.set(10, 20, 10);
 scene.add(light);
@@ -37,8 +36,9 @@ for (let x = -50; x < 50; x++) {
     scene.add(tile);
   }
 }
+
 /* ========================
-   FPSコントロール（確実版）
+   FPSコントロール（bob構造）
 ======================== */
 
 const controls = new PointerLockControls(camera, document.body);
@@ -46,12 +46,13 @@ scene.add(controls.getObject());
 document.addEventListener("click", () => controls.lock());
 
 const player = controls.getObject();
-/* ▼ ここが新しい */
+player.position.set(0, 0, 5);
+
+/* ▼ bob専用オブジェクト */
 const bobObject = new THREE.Object3D();
-bobObject.position.y = 1.6;   // 目の高さ
+bobObject.position.y = 1.6;
 player.add(bobObject);
 bobObject.add(camera);
-
 
 /* ========================
    入力
@@ -77,10 +78,9 @@ const gravity = -25;
 const jumpPower = 9;
 
 let onGround = true;
-const eyeHeight = 1.6;
+const eyeHeight = 0;   // playerの基準を0にした
 
-/* ★ここが重要★ */
-let bodyY = eyeHeight;
+let bodyY = 0;
 
 /* ========================
    FOV
@@ -96,7 +96,7 @@ const fovSpeed = 8;
 
 let bobTime = 0;
 let bobOffset = 0;
-const bobAmount = 0.1;
+const bobAmount = 0.12;
 const bobSpeed = 12;
 
 /* ========================
@@ -133,7 +133,7 @@ function update(delta) {
   controls.moveRight(velocity.x * delta);
   controls.moveForward(velocity.z * delta);
 
-  /* === 重力（bodyYのみ更新） === */
+  /* === 重力 === */
 
   velocity.y += gravity * delta;
   bodyY += velocity.y * delta;
@@ -159,9 +159,10 @@ function update(delta) {
     bobOffset += (0 - bobOffset) * 12 * delta;
   }
 
-  /* === 合成（ここが命） === */
+  /* === 反映 === */
 
-  player.position.y = bodyY + bobOffset;
+  player.position.y = bodyY;
+  bobObject.position.y = 1.6 + bobOffset;
 
   /* === FOV === */
 
