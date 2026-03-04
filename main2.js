@@ -2,15 +2,13 @@ import * as THREE from "three";
 import { PointerLockControls } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/PointerLockControls.js";
 
 /* ========================
-   基本セットアップ
+   基本セット
 ======================== */
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87CEEB);
 
 const camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.1, 1000);
-camera.position.set(0, 0, 0);
-
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(innerWidth, innerHeight);
 document.body.appendChild(renderer.domElement);
@@ -67,8 +65,8 @@ document.addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
 const velocity = new THREE.Vector3();
 const direction = new THREE.Vector3();
 
-const walkAcceleration = 35;
-const sprintAcceleration = 70;
+const walkAccel = 35;
+const sprintAccel = 70;
 const friction = 6;
 const airControl = 0.3;
 
@@ -79,18 +77,19 @@ let onGround = true;
 const eyeHeight = 1.6;
 
 /* ========================
-   FOV設定
+   FOV
 ======================== */
 
 const baseFov = 75;
 const sprintFov = 90;
-const fovLerpSpeed = 6;
+const fovSpeed = 6;
 
 /* ========================
    ヘッドボブ
 ======================== */
 
 let bobTime = 0;
+let bobOffset = 0;
 const bobAmount = 0.05;
 const bobSpeed = 10;
 
@@ -102,23 +101,27 @@ const clock = new THREE.Clock();
 
 function update(delta) {
 
-  direction.set(0, 0, 0);
+  /* === 入力方向 === */
 
+  direction.set(0, 0, 0);
   if (keys["w"]) direction.z -= 1;
   if (keys["s"]) direction.z += 1;
   if (keys["a"]) direction.x -= 1;
   if (keys["d"]) direction.x += 1;
-
   direction.normalize();
 
   const isMoving = direction.length() > 0;
   const isSprinting = keys["shift"] && isMoving;
 
-  const acceleration = isSprinting ? sprintAcceleration : walkAcceleration;
+  const accel = isSprinting ? sprintAccel : walkAccel;
   const control = onGround ? 1 : airControl;
 
-  velocity.x += direction.x * acceleration * delta * control;
-  velocity.z += direction.z * acceleration * delta * control;
+  /* === 水平方向加速 === */
+
+  velocity.x += direction.x * accel * delta * control;
+  velocity.z += direction.z * accel * delta * control;
+
+  /* === 摩擦 === */
 
   velocity.x -= velocity.x * friction * delta;
   velocity.z -= velocity.z * friction * delta;
@@ -126,14 +129,14 @@ function update(delta) {
   controls.moveRight(velocity.x * delta);
   controls.moveForward(velocity.z * delta);
 
-  /* ===== 重力 ===== */
+  /* === 重力計算（ベースYのみ） === */
 
   velocity.y += gravity * delta;
-  player.position.y += velocity.y * delta;
+  let baseY = player.position.y + velocity.y * delta;
 
-  if (player.position.y <= eyeHeight) {
+  if (baseY <= eyeHeight) {
     velocity.y = 0;
-    player.position.y = eyeHeight;
+    baseY = eyeHeight;
     onGround = true;
   }
 
@@ -142,21 +145,25 @@ function update(delta) {
     onGround = false;
   }
 
-  /* ===== FOV変化 ===== */
-
-  const targetFov = isSprinting ? sprintFov : baseFov;
-  camera.fov += (targetFov - camera.fov) * fovLerpSpeed * delta;
-  camera.updateProjectionMatrix();
-
-  /* ===== ヘッドボブ ===== */
+  /* === ヘッドボブ === */
 
   if (isMoving && onGround) {
     bobTime += delta * bobSpeed * (isSprinting ? 1.5 : 1);
-    player.position.y = eyeHeight + Math.sin(bobTime) * bobAmount;
+    bobOffset = Math.sin(bobTime) * bobAmount;
   } else {
     bobTime = 0;
-    player.position.y += (eyeHeight - player.position.y) * 10 * delta;
+    bobOffset += (0 - bobOffset) * 10 * delta;
   }
+
+  /* === Y合成 === */
+
+  player.position.y = baseY + bobOffset;
+
+  /* === FOV変化 === */
+
+  const targetFov = isSprinting ? sprintFov : baseFov;
+  camera.fov += (targetFov - camera.fov) * fovSpeed * delta;
+  camera.updateProjectionMatrix();
 }
 
 /* ========================
