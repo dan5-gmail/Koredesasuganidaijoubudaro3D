@@ -1,5 +1,4 @@
 import * as THREE from "three";
-import { PointerLockControls } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/PointerLockControls.js";
 
 /*========================
    基本セットアップ
@@ -9,15 +8,28 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87CEEB);
 
 const camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.1, 1000);
-camera.position.set(5, 1.6, 5);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(innerWidth, innerHeight);
 document.body.appendChild(renderer.domElement);
 
-/* ========================
+/*========================
+   プレイヤー構造
+========================*/
+
+// 横回転用
+const yawObject = new THREE.Object3D();
+yawObject.position.y = 1.6;
+scene.add(yawObject);
+
+// 縦回転用
+const pitchObject = new THREE.Object3D();
+pitchObject.add(camera);
+yawObject.add(pitchObject);
+
+/*========================
    ライト
-======================== */
+========================*/
 
 scene.add(new THREE.AmbientLight(0xffffff, 0.4));
 
@@ -41,15 +53,6 @@ for (let x = 0; x < 50; x++) {
 }
 
 /*========================
-   FPSコントロール
-========================*/
-
-const controls = new PointerLockControls(camera, document.body);
-scene.add(controls.getObject());
-
-document.addEventListener("click", () => controls.lock());
-
-/*========================
    入力
 ========================*/
 
@@ -58,40 +61,72 @@ document.addEventListener("keydown", e => keys[e.key.toLowerCase()] = true);
 document.addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
 
 /*========================
-   物理パラメータ
+   マウス回転（PC）
+========================*/
+
+let yaw = 0;
+let pitch = 0;
+const sensitivity = 0.002;
+
+document.body.addEventListener("click", () => {
+  document.body.requestPointerLock();
+});
+
+document.addEventListener("mousemove", (e) => {
+  if (document.pointerLockElement === document.body) {
+    yaw -= e.movementX * sensitivity;
+    pitch -= e.movementY * sensitivity;
+
+    pitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, pitch));
+
+    yawObject.rotation.y = yaw;
+    pitchObject.rotation.x = pitch;
+  }
+});
+
+/*========================
+   タッチ回転（モバイル）
+========================*/
+
+let touchX = 0;
+let touchY = 0;
+
+document.addEventListener("touchstart", (e) => {
+  touchX = e.touches[0].clientX;
+  touchY = e.touches[0].clientY;
+});
+
+document.addEventListener("touchmove", (e) => {
+  const touch = e.touches[0];
+
+  const deltaX = touch.clientX - touchX;
+  const deltaY = touch.clientY - touchY;
+
+  touchX = touch.clientX;
+  touchY = touch.clientY;
+
+  yaw -= deltaX * sensitivity;
+  pitch -= deltaY * sensitivity;
+
+  pitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, pitch));
+
+  yawObject.rotation.y = yaw;
+  pitchObject.rotation.x = pitch;
+});
+
+/*========================
+   物理
 ========================*/
 
 const velocity = new THREE.Vector3();
 const direction = new THREE.Vector3();
 
-const moveAcceleration = 40;
-const friction = 12;
-const airControl = 0.3;
+const moveSpeed = 8;
 const gravity = -20;
 const jumpPower = 8;
 
 let onGround = true;
-
-/*========================
-   FOV設定
-========================*/
-
-const baseFov = 75;
-const sprintFov = 85;
-const fovLerpSpeed = 8;
-
-/*========================
-   ヘッドボブ設定
-========================*/
-
-let bobTime = 0;
-const bobAmount = 0.04;
-const bobSpeed = 10;
 const eyeHeight = 1.6;
-
-/*========================
-   更新処理
-========================*/
 
 const clock = new THREE.Clock();
 
@@ -106,28 +141,25 @@ function update(delta) {
 
   direction.normalize();
 
-  const isMoving = direction.length() > 0;
-  const isSprinting = keys["shift"] && isMoving;
+  // 前方向ベクトル取得
+  const forward = new THREE.Vector3();
+  yawObject.getWorldDirection(forward);
+  forward.y = 0;
+  forward.normalize();
 
-  const control = onGround ? 1 : airControl;
+  const right = new THREE.Vector3();
+  right.crossVectors(forward, new THREE.Vector3(0,1,0)).normalize();
 
-  velocity.x += direction.x * moveAcceleration * delta * control;
-  velocity.z += direction.z * moveAcceleration * delta * control;
+  yawObject.position.addScaledVector(forward, direction.z * moveSpeed * delta);
+  yawObject.position.addScaledVector(right, direction.x * moveSpeed * delta);
 
-  velocity.x -= velocity.x * friction * delta;
-  velocity.z -= velocity.z * friction * delta;
-
-  controls.moveRight(velocity.x * delta);
-  controls.moveForward(velocity.z * delta);
-
-  /* ===== 重力 ===== */
-
+  /* 重力 */
   velocity.y += gravity * delta;
-  camera.position.y += velocity.y * delta;
+  yawObject.position.y += velocity.y * delta;
 
-  if (camera.position.y <= eyeHeight) {
+  if (yawObject.position.y <= eyeHeight) {
     velocity.y = 0;
-    camera.position.y = eyeHeight;
+    yawObject.position.y = eyeHeight;
     onGround = true;
   }
 
@@ -135,26 +167,10 @@ function update(delta) {
     velocity.y = jumpPower;
     onGround = false;
   }
-
-  /* ===== FOV変化 ===== */
-
-  const targetFov = isSprinting ? sprintFov : baseFov;
-  camera.fov += (targetFov - camera.fov) * fovLerpSpeed * delta;
-  camera.updateProjectionMatrix();
-
-  /* ===== ヘッドボブ ===== */
-
-  if (isMoving && onGround) {
-    bobTime += delta * bobSpeed * (isSprinting ? 1.5 : 1);
-    camera.position.y = eyeHeight + Math.sin(bobTime) * bobAmount;
-  } else {
-    bobTime = 0;
-    camera.position.y += (eyeHeight - camera.position.y) * 10 * delta;
-  }
 }
 
 /*========================
-   アニメーションループ
+   ループ
 ========================*/
 
 function animate() {
@@ -167,7 +183,7 @@ function animate() {
 animate();
 
 /*========================
-   リサイズ対応
+   リサイズ
 ========================*/
 
 window.addEventListener("resize", () => {
