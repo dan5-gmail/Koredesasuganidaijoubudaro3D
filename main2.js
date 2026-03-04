@@ -101,6 +101,3 @@ function animate(){
   renderer.render(scene,camera);
 }
 animate();
-
-camera.fov = 30;
-camera.updateProjectionMatrix();
