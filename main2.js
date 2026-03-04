@@ -14,12 +14,11 @@ document.body.appendChild(renderer.domElement);
 /* ================= ライト ================= */
 
 scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+const light = new THREE.DirectionalLight(0xffffff, 1);
+light.position.set(10, 20, 10);
+scene.add(light);
 
-const dirLight = new THREE.DirectionalLight(0xffffff, 1);
-dirLight.position.set(10, 20, 10);
-scene.add(dirLight);
-
-/* ================= 地面（超重要） ================= */
+/* ================= 地面 ================= */
 
 const ground = new THREE.Mesh(
   new THREE.PlaneGeometry(1000, 1000),
@@ -32,13 +31,12 @@ scene.add(ground);
 
 const controls = new PointerLockControls(camera, document.body);
 scene.add(controls.getObject());
-
 document.addEventListener("click", () => controls.lock());
 
 const player = controls.getObject();
 player.position.set(0, 0, 5);
 
-/* ===== Bob専用ノード ===== */
+/* ===== bobノード ===== */
 
 const bobNode = new THREE.Object3D();
 player.add(bobNode);
@@ -59,8 +57,8 @@ const velocity = new THREE.Vector3();
 const direction = new THREE.Vector3();
 
 const walkAccel = 45;
-const sprintAccel = 85;
-const friction = 12;
+const sprintAccel = 90;
+const friction = 10;
 const gravity = -30;
 const jumpPower = 9;
 
@@ -70,18 +68,17 @@ let onGround = true;
 /* ================= FOV ================= */
 
 const baseFov = 75;
-const sprintFov = 95;
-const fovSpeed = 8;
+const sprintFov = 105; // さらに広げた
+const fovSpeed = 10;
 
-/* ================= ヘッドボブ ================= */
+/* ================= 超強ヘッドボブ ================= */
 
 let bobTime = 0;
-let bobY = 0;
-let bobX = 0;
 
-const bobAmountY = 0.25;
-const bobAmountX = 0.12;
-const bobSpeed = 12;
+const bobAmountY = 0.6;   // ← 超強
+const bobAmountX = 0.4;   // ← 超強
+const bobRotZ  = 0.05;    // ← 回転揺れ
+const bobSpeed = 16;
 
 /* ================= 更新 ================= */
 
@@ -89,7 +86,6 @@ const clock = new THREE.Clock();
 
 function update(delta) {
 
-  /* 入力方向 */
   direction.set(0, 0, 0);
   if (keys["w"]) direction.z -= 1;
   if (keys["s"]) direction.z += 1;
@@ -100,18 +96,15 @@ function update(delta) {
   const isSprinting = keys["shift"];
   const accel = isSprinting ? sprintAccel : walkAccel;
 
-  /* 加速 */
   velocity.x += direction.x * accel * delta;
   velocity.z += direction.z * accel * delta;
 
-  /* 摩擦（自然減速） */
   velocity.x -= velocity.x * friction * delta;
   velocity.z -= velocity.z * friction * delta;
 
   controls.moveRight(velocity.x * delta);
   controls.moveForward(velocity.z * delta);
 
-  /* 重力 */
   velocity.y += gravity * delta;
   bodyY += velocity.y * delta;
 
@@ -128,28 +121,29 @@ function update(delta) {
 
   player.position.y = bodyY;
 
-  /* ===== 実速度判定 ===== */
+  /* ===== 揺れ判定 ===== */
 
   const speed = Math.sqrt(velocity.x ** 2 + velocity.z ** 2);
   const isMoving = speed > 0.15;
 
-  /* ===== ヘッドボブ ===== */
-
   if (isMoving && onGround) {
-    bobTime += delta * bobSpeed * (isSprinting ? 1.8 : 1);
+    bobTime += delta * bobSpeed * (isSprinting ? 2.0 : 1);
 
-    bobY = Math.sin(bobTime) * bobAmountY;
-    bobX = Math.cos(bobTime * 0.5) * bobAmountX;
+    const y = Math.sin(bobTime) * bobAmountY;
+    const x = Math.cos(bobTime * 0.5) * bobAmountX;
+    const rot = Math.sin(bobTime * 0.5) * bobRotZ;
+
+    bobNode.position.y = eyeHeight + y;
+    bobNode.position.x = x;
+    camera.rotation.z = rot;
 
   } else {
     bobTime = 0;
 
-    bobY += (0 - bobY) * 10 * delta;
-    bobX += (0 - bobX) * 10 * delta;
+    bobNode.position.y += (eyeHeight - bobNode.position.y) * 8 * delta;
+    bobNode.position.x += (0 - bobNode.position.x) * 8 * delta;
+    camera.rotation.z += (0 - camera.rotation.z) * 8 * delta;
   }
-
-  bobNode.position.y = eyeHeight + bobY;
-  bobNode.position.x = bobX;
 
   /* ===== FOV ===== */
 
@@ -166,7 +160,6 @@ function animate() {
   update(delta);
   renderer.render(scene, camera);
 }
-
 animate();
 
 /* ================= リサイズ ================= */
