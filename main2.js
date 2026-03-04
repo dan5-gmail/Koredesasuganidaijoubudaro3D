@@ -37,18 +37,21 @@ for (let x = -50; x < 50; x++) {
     scene.add(tile);
   }
 }
-
 /* ========================
-   FPSコントロール
+   FPSコントロール（確実版）
 ======================== */
 
 const controls = new PointerLockControls(camera, document.body);
 scene.add(controls.getObject());
-
 document.addEventListener("click", () => controls.lock());
 
 const player = controls.getObject();
-player.position.set(0, 1.6, 5);
+/* ▼ ここが新しい */
+const bobObject = new THREE.Object3D();
+bobObject.position.y = 1.6;   // 目の高さ
+player.add(bobObject);
+bobObject.add(camera);
+
 
 /* ========================
    入力
