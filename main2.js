@@ -27,12 +27,12 @@ scene.add(light);
    地面
 ======================== */
 
+const groundGeo = new THREE.BoxGeometry(1, 1, 1);
+const groundMat = new THREE.MeshLambertMaterial({ color: 0x228B22 });
+
 for (let x = -50; x < 50; x++) {
   for (let z = -50; z < 50; z++) {
-    const tile = new THREE.Mesh(
-      new THREE.BoxGeometry(1, 1, 1),
-      new THREE.MeshLambertMaterial({ color: 0x228B22 })
-    );
+    const tile = new THREE.Mesh(groundGeo, groundMat);
     tile.position.set(x, -0.5, z);
     scene.add(tile);
   }
@@ -59,19 +59,19 @@ document.addEventListener("keydown", e => keys[e.key.toLowerCase()] = true);
 document.addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
 
 /* ========================
-   物理パラメータ
+   物理
 ======================== */
 
 const velocity = new THREE.Vector3();
 const direction = new THREE.Vector3();
 
-const walkAccel = 35;
-const sprintAccel = 70;
-const friction = 6;
+const walkAccel = 40;
+const sprintAccel = 75;
+const friction = 8;
 const airControl = 0.3;
 
-const gravity = -20;
-const jumpPower = 8;
+const gravity = -25;
+const jumpPower = 9;
 
 let onGround = true;
 const eyeHeight = 1.6;
@@ -81,8 +81,8 @@ const eyeHeight = 1.6;
 ======================== */
 
 const baseFov = 75;
-const sprintFov = 90;
-const fovSpeed = 6;
+const sprintFov = 92;
+const fovSpeed = 8;
 
 /* ========================
    ヘッドボブ
@@ -90,8 +90,8 @@ const fovSpeed = 6;
 
 let bobTime = 0;
 let bobOffset = 0;
-const bobAmount = 0.05;
-const bobSpeed = 10;
+const bobAmount = 0.08;   // ← 揺れ量（確実に見える値）
+const bobSpeed = 12;
 
 /* ========================
    更新処理
@@ -121,7 +121,7 @@ function update(delta) {
   velocity.x += direction.x * accel * delta * control;
   velocity.z += direction.z * accel * delta * control;
 
-  /* === 摩擦 === */
+  /* === 摩擦（自然減速） === */
 
   velocity.x -= velocity.x * friction * delta;
   velocity.z -= velocity.z * friction * delta;
@@ -129,7 +129,7 @@ function update(delta) {
   controls.moveRight(velocity.x * delta);
   controls.moveForward(velocity.z * delta);
 
-  /* === 重力計算（ベースYのみ） === */
+  /* === 重力 === */
 
   velocity.y += gravity * delta;
   let baseY = player.position.y + velocity.y * delta;
@@ -148,17 +148,16 @@ function update(delta) {
   /* === ヘッドボブ === */
 
   if (isMoving && onGround) {
-    bobTime += delta * bobSpeed * (isSprinting ? 1.5 : 1);
+    bobTime += delta * bobSpeed * (isSprinting ? 1.6 : 1);
     bobOffset = Math.sin(bobTime) * bobAmount;
   } else {
     bobTime = 0;
-    bobOffset += (0 - bobOffset) * 10 * delta;
+    bobOffset += (0 - bobOffset) * 12 * delta;
   }
 
-  /* === Y合成 === */
+  /* === Y合成（これが超重要） === */
 
-  player.position.y = baseY;
-camera.position.y = bobOffset;
+  player.position.y = baseY + bobOffset;
 
   /* === FOV変化 === */
 
@@ -176,7 +175,6 @@ function animate() {
   const delta = clock.getDelta();
   update(delta);
   renderer.render(scene, camera);
-   camera.position.y = Math.sin(performance.now() * 0.01) * 0.2;
 }
 
 animate();
