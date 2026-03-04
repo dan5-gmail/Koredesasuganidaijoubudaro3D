@@ -157,7 +157,8 @@ function update(delta) {
 
   /* === Y合成 === */
 
-  player.position.y = baseY + bobOffset;
+  player.position.y = baseY;
+camera.position.y = bobOffset;
 
   /* === FOV変化 === */
 
