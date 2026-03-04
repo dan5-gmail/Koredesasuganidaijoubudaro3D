@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>PC FPS 完全安定版</title>
+<title>FPS 完全版</title>
 <style>
 body { margin:0; overflow:hidden; background:black; }
 #crosshair{
@@ -27,8 +27,8 @@ body { margin:0; overflow:hidden; background:black; }
 }
 </script>
 </head>
-
 <body>
+
 <div id="crosshair"></div>
 
 <script type="module">
@@ -36,7 +36,7 @@ body { margin:0; overflow:hidden; background:black; }
 import * as THREE from "three";
 import { PointerLockControls } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/PointerLockControls.js";
 
-/* ===== 基本 ===== */
+/* ================= 基本 ================= */
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87CEEB);
@@ -46,14 +46,7 @@ const renderer = new THREE.WebGLRenderer({antialias:true});
 renderer.setSize(innerWidth, innerHeight);
 document.body.appendChild(renderer.domElement);
 
-/* ===== 光 ===== */
-
-scene.add(new THREE.AmbientLight(0xffffff,0.6));
-const light = new THREE.DirectionalLight(0xffffff,1);
-light.position.set(10,20,10);
-scene.add(light);
-
-/* ===== 地面（平面）===== */
+/* ================= 地面 ================= */
 
 const ground = new THREE.Mesh(
   new THREE.PlaneGeometry(500,500),
@@ -62,7 +55,9 @@ const ground = new THREE.Mesh(
 ground.rotation.x = -Math.PI/2;
 scene.add(ground);
 
-/* ===== FPS構造 ===== */
+scene.add(new THREE.AmbientLight(0xffffff,0.6));
+
+/* ================= FPS ================= */
 
 const controls = new PointerLockControls(camera, document.body);
 scene.add(controls.getObject());
@@ -71,7 +66,8 @@ document.addEventListener("click", ()=>controls.lock());
 const player = controls.getObject();
 player.position.set(0,0,5);
 
-/* ★ ヘッドボブ専用ノード */
+/* ⭐ ヘッドボブ用ノード */
+
 const bobNode = new THREE.Object3D();
 player.add(bobNode);
 bobNode.add(camera);
@@ -79,13 +75,13 @@ bobNode.add(camera);
 const eyeHeight = 1.6;
 bobNode.position.y = eyeHeight;
 
-/* ===== 入力 ===== */
+/* ================= 入力 ================= */
 
 const keys = {};
 document.addEventListener("keydown", e=>keys[e.key.toLowerCase()] = true);
 document.addEventListener("keyup", e=>keys[e.key.toLowerCase()] = false);
 
-/* ===== 物理 ===== */
+/* ================= 物理 ================= */
 
 const velocity = new THREE.Vector3();
 const direction = new THREE.Vector3();
@@ -99,13 +95,13 @@ const jumpPower = 9;
 let bodyY = 0;
 let onGround = true;
 
-/* ===== ヘッドボブ ===== */
+/* ================= ヘッドボブ ================= */
 
 let bobTime = 0;
-const bobAmount = 0.3;   // 確実に見えるサイズ
+const bobAmount = 0.35;
 const bobSpeed = 12;
 
-/* ===== FOV ===== */
+/* ================= FOV ================= */
 
 const baseFov = 75;
 const sprintFov = 95;
@@ -113,10 +109,13 @@ const fovSpeed = 8;
 
 const clock = new THREE.Clock();
 
-/* ===== 更新 ===== */
+/* ===================================================
+   🔥 ここが update 関数（毎フレーム呼ばれる本体）
+=================================================== */
 
 function update(delta){
 
+  /* ---- 入力方向 ---- */
   direction.set(0,0,0);
   if(keys["w"]) direction.z -= 1;
   if(keys["s"]) direction.z += 1;
@@ -127,15 +126,18 @@ function update(delta){
   const isSprinting = keys["shift"];
   const accel = isSprinting ? sprintAccel : walkAccel;
 
+  /* ---- 加速 ---- */
   velocity.x += direction.x * accel * delta;
   velocity.z += direction.z * accel * delta;
 
+  /* ---- 摩擦 ---- */
   velocity.x -= velocity.x * friction * delta;
   velocity.z -= velocity.z * friction * delta;
 
   controls.moveRight(velocity.x * delta);
   controls.moveForward(velocity.z * delta);
 
+  /* ---- 重力 ---- */
   velocity.y += gravity * delta;
   bodyY += velocity.y * delta;
 
@@ -152,38 +154,36 @@ function update(delta){
 
   player.position.y = bodyY;
 
-  /* ===== 揺れ判定 ===== */
-
+  /* ---- ヘッドボブ ---- */
   const speed = Math.sqrt(velocity.x**2 + velocity.z**2);
   const moving = speed > 0.1;
 
   if(moving && onGround){
     bobTime += delta * bobSpeed * (isSprinting ? 1.8 : 1);
-    const offset = Math.sin(bobTime) * bobAmount;
-    bobNode.position.y = eyeHeight + offset;
-  }else{
+    bobNode.position.y = eyeHeight + Math.sin(bobTime) * bobAmount;
+  } else {
     bobTime = 0;
     bobNode.position.y += (eyeHeight - bobNode.position.y) * 8 * delta;
   }
 
-  /* ===== FOV変化 ===== */
-
+  /* ---- FOV変化 ---- */
   const targetFov = isSprinting ? sprintFov : baseFov;
   camera.fov += (targetFov - camera.fov) * fovSpeed * delta;
   camera.updateProjectionMatrix();
-}
 
-/* ===== ループ ===== */
+} // ← ★ updateの終わりはここ
+
+/* ================= ループ ================= */
 
 function animate(){
   requestAnimationFrame(animate);
   const delta = clock.getDelta();
-  update(delta);
+  update(delta);          // ← ここで毎フレーム呼んでいる
   renderer.render(scene,camera);
 }
 animate();
 
-/* ===== リサイズ ===== */
+/* ================= リサイズ ================= */
 
 window.addEventListener("resize",()=>{
   camera.aspect = innerWidth/innerHeight;
