@@ -1,9 +1,7 @@
-import * as THREE from "three";
+import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
 import { PointerLockControls } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/PointerLockControls.js";
 
-/* ========================
-   基本セット
-======================== */
+/* ================= 基本 ================= */
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87CEEB);
@@ -13,93 +11,79 @@ const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(innerWidth, innerHeight);
 document.body.appendChild(renderer.domElement);
 
-/* ========================
-   ライト
-======================== */
+/* ================= ライト ================= */
 
-scene.add(new THREE.AmbientLight(0xffffff, 0.5));
-const light = new THREE.DirectionalLight(0xffffff, 1);
-light.position.set(10, 20, 10);
-scene.add(light);
+scene.add(new THREE.AmbientLight(0xffffff, 0.6));
 
-/* ========================
-   地面
-======================== */
+const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+dirLight.position.set(10, 20, 10);
+scene.add(dirLight);
 
-const groundGeo = new THREE.BoxGeometry(1, 1, 1);
-const groundMat = new THREE.MeshLambertMaterial({ color: 0x228B22 });
+/* ================= 地面（超重要） ================= */
 
-for (let x = -50; x < 50; x++) {
-  for (let z = -50; z < 50; z++) {
-    const tile = new THREE.Mesh(groundGeo, groundMat);
-    tile.position.set(x, -0.5, z);
-    scene.add(tile);
-  }
-}
+const ground = new THREE.Mesh(
+  new THREE.PlaneGeometry(1000, 1000),
+  new THREE.MeshLambertMaterial({ color: 0x228B22 })
+);
+ground.rotation.x = -Math.PI / 2;
+scene.add(ground);
 
-/* ========================
-   FPSコントロール
-======================== */
+/* ================= FPS ================= */
 
 const controls = new PointerLockControls(camera, document.body);
 scene.add(controls.getObject());
+
 document.addEventListener("click", () => controls.lock());
 
 const player = controls.getObject();
 player.position.set(0, 0, 5);
 
-/* bob専用オブジェクト */
-const bobObject = new THREE.Object3D();
-player.add(bobObject);
-bobObject.add(camera);
+/* ===== Bob専用ノード ===== */
+
+const bobNode = new THREE.Object3D();
+player.add(bobNode);
+bobNode.add(camera);
 
 const eyeHeight = 1.6;
-bobObject.position.y = eyeHeight;
+bobNode.position.y = eyeHeight;
 
-/* ========================
-   入力
-======================== */
+/* ================= 入力 ================= */
 
 const keys = {};
 document.addEventListener("keydown", e => keys[e.key.toLowerCase()] = true);
 document.addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
 
-/* ========================
-   物理
-======================== */
+/* ================= 物理 ================= */
 
 const velocity = new THREE.Vector3();
 const direction = new THREE.Vector3();
 
 const walkAccel = 45;
-const sprintAccel = 80;
-const friction = 10;
+const sprintAccel = 85;
+const friction = 12;
 const gravity = -30;
 const jumpPower = 9;
 
 let bodyY = 0;
 let onGround = true;
 
-/* ========================
-   FOV
-======================== */
+/* ================= FOV ================= */
 
 const baseFov = 75;
 const sprintFov = 95;
-const fovSpeed = 10;
+const fovSpeed = 8;
 
-/* ========================
-   ヘッドボブ
-======================== */
+/* ================= ヘッドボブ ================= */
 
 let bobTime = 0;
-let bobOffset = 0;
-const bobAmount = 0.15;   // 強めにして確実に見せる
-const bobSpeed = 14;
+let bobY = 0;
+let bobX = 0;
 
-/* ========================
-   更新処理
-======================== */
+const bobAmountY = 0.25;
+const bobAmountX = 0.12;
+const bobSpeed = 12;
+
+/* ================= 更新 ================= */
 
 const clock = new THREE.Clock();
 
@@ -116,11 +100,11 @@ function update(delta) {
   const isSprinting = keys["shift"];
   const accel = isSprinting ? sprintAccel : walkAccel;
 
-  /* 水平加速 */
+  /* 加速 */
   velocity.x += direction.x * accel * delta;
   velocity.z += direction.z * accel * delta;
 
-  /* 摩擦 */
+  /* 摩擦（自然減速） */
   velocity.x -= velocity.x * friction * delta;
   velocity.z -= velocity.z * friction * delta;
 
@@ -142,32 +126,39 @@ function update(delta) {
     onGround = false;
   }
 
-  /* 実際に動いているか判定（キーではなく速度） */
-  const speed = Math.sqrt(velocity.x * velocity.x + velocity.z * velocity.z);
-  const isMoving = speed > 0.1;
+  player.position.y = bodyY;
 
-  /* ヘッドボブ */
+  /* ===== 実速度判定 ===== */
+
+  const speed = Math.sqrt(velocity.x ** 2 + velocity.z ** 2);
+  const isMoving = speed > 0.15;
+
+  /* ===== ヘッドボブ ===== */
+
   if (isMoving && onGround) {
     bobTime += delta * bobSpeed * (isSprinting ? 1.8 : 1);
-    bobOffset = Math.sin(bobTime) * bobAmount;
+
+    bobY = Math.sin(bobTime) * bobAmountY;
+    bobX = Math.cos(bobTime * 0.5) * bobAmountX;
+
   } else {
     bobTime = 0;
-    bobOffset += (0 - bobOffset) * 12 * delta;
+
+    bobY += (0 - bobY) * 10 * delta;
+    bobX += (0 - bobX) * 10 * delta;
   }
 
-  /* 反映 */
-  player.position.y = bodyY;
-  bobObject.position.y = eyeHeight + bobOffset;
+  bobNode.position.y = eyeHeight + bobY;
+  bobNode.position.x = bobX;
 
-  /* FOV */
+  /* ===== FOV ===== */
+
   const targetFov = isSprinting ? sprintFov : baseFov;
   camera.fov += (targetFov - camera.fov) * fovSpeed * delta;
   camera.updateProjectionMatrix();
 }
 
-/* ========================
-   ループ
-======================== */
+/* ================= ループ ================= */
 
 function animate() {
   requestAnimationFrame(animate);
@@ -178,9 +169,7 @@ function animate() {
 
 animate();
 
-/* ========================
-   リサイズ
-======================== */
+/* ================= リサイズ ================= */
 
 window.addEventListener("resize", () => {
   camera.aspect = innerWidth / innerHeight;
