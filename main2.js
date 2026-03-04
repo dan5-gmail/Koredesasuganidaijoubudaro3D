@@ -176,6 +176,7 @@ function animate() {
   const delta = clock.getDelta();
   update(delta);
   renderer.render(scene, camera);
+   camera.position.y = Math.sin(performance.now() * 0.01) * 0.2;
 }
 
 animate();
