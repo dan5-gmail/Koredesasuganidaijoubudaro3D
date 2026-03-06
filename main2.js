@@ -50,7 +50,7 @@ const friction = 10;
 const gravity = -30;
 const jumpPower = 9;
 
-let bodyY = 2;
+player.position.set(0, 2, 5);
 let onGround = true;
 
 let bobTime = 0;
