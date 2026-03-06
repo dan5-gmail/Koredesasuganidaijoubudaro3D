@@ -1,187 +1,161 @@
-import * as THREE from "three";
+import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
 import { PointerLockControls } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/PointerLockControls.js";
 
-/* ===== シーン ===== */
+/* =================
+基本
+================= */
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x87CEEB);
+scene.background = new THREE.Color(0x87ceeb);
 
 const camera = new THREE.PerspectiveCamera(
 75,
-window.innerWidth/window.innerHeight,
+window.innerWidth / window.innerHeight,
 0.1,
 1000
 );
 
 const renderer = new THREE.WebGLRenderer({antialias:true});
-renderer.setSize(window.innerWidth,window.innerHeight);
+renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-/* ===== 光 ===== */
+/* =================
+ライト
+================= */
 
-scene.add(new THREE.HemisphereLight(0xffffff,0x444444,1));
+const light = new THREE.DirectionalLight(0xffffff,1);
+light.position.set(50,100,50);
+scene.add(light);
 
-/* ===== 100×100地面 ===== */
+scene.add(new THREE.AmbientLight(0xffffff,0.5));
 
-const ground = new THREE.Mesh(
- new THREE.PlaneGeometry(100,100),
- new THREE.MeshLambertMaterial({color:0x228B22})
-);
+/* =================
+100×100 地面
+================= */
 
-ground.rotation.x = -Math.PI/2;
-scene.add(ground);
-
-/* グリッド（位置確認用） */
-
-const grid = new THREE.GridHelper(100,100);
+const size = 100;
+const grid = new THREE.GridHelper(size, size);
 scene.add(grid);
 
-/* ===== FPS ===== */
+/* =================
+操作
+================= */
 
-const controls = new PointerLockControls(camera,document.body);
+const controls = new PointerLockControls(camera, document.body);
 scene.add(controls.getObject());
 
-camera.position.y = 1.7;
+const start = document.getElementById("start");
 
-document.addEventListener("click",()=>{
- controls.lock();
+start.addEventListener("click", ()=>{
+controls.lock();
 });
 
-/* ===== 入力 ===== */
-
-const keys={};
-
-document.addEventListener("keydown",e=>{
- keys[e.key.toLowerCase()] = true;
+controls.addEventListener("lock", ()=>{
+start.style.display="none";
 });
 
-document.addEventListener("keyup",e=>{
- keys[e.key.toLowerCase()] = false;
+controls.addEventListener("unlock", ()=>{
+start.style.display="";
 });
 
-/* ===== 物理 ===== */
+/* =================
+プレイヤー
+================= */
 
-const velocity = new THREE.Vector3();
-const direction = new THREE.Vector3();
+camera.position.set(0,3,0);
 
-const walkSpeed = 6;
-const sprintSpeed = 12;
-const gravity = -25;
-const jumpPower = 10;
+let velocityY = 0;
+let onGround = false;
 
-let bodyY = 1.7;
-let onGround = true;
+const gravity = 0.01;
+const jumpPower = 0.25;
 
-/* ===== ヘッドボブ ===== */
+/* =================
+キー入力
+================= */
 
-let bobTime = 0;
-const bobAmount = 0.15;
-const bobSpeed = 10;
+const keys = {};
 
-/* ===== FOV ===== */
+document.addEventListener("keydown",(e)=>{
+keys[e.code]=true;
 
-const baseFov = 75;
-const sprintFov = 95;
+if(e.code==="Space" && onGround){
+velocityY = jumpPower;
+onGround=false;
+}
+});
 
-/* ===== clock ===== */
+document.addEventListener("keyup",(e)=>{
+keys[e.code]=false;
+});
 
-const clock = new THREE.Clock();
+/* =================
+移動
+================= */
 
-/* ===== update ===== */
+let headBobTime = 0;
 
-function update(delta){
+function move(){
 
-direction.set(0,0,0);
+const speed = keys["ShiftLeft"] ? 0.15 : 0.08;
 
-if(keys["w"]) direction.z-=1;
-if(keys["s"]) direction.z+=1;
-if(keys["a"]) direction.x-=1;
-if(keys["d"]) direction.x+=1;
+if(keys["KeyW"]) controls.moveForward(speed);
+if(keys["KeyS"]) controls.moveForward(-speed);
+if(keys["KeyA"]) controls.moveRight(-speed);
+if(keys["KeyD"]) controls.moveRight(speed);
 
-direction.normalize();
+/* ヘッドボブ */
 
-/* 走る */
+if(keys["KeyW"]||keys["KeyA"]||keys["KeyS"]||keys["KeyD"]){
 
-const running = keys["shift"];
-const speed = running ? sprintSpeed : walkSpeed;
+headBobTime += 0.15;
 
-velocity.x = direction.x * speed;
-velocity.z = direction.z * speed;
-
-/* 移動 */
-
-controls.moveRight(velocity.x*delta);
-controls.moveForward(velocity.z*delta);
-
-/* ジャンプ */
-
-if(keys[" "] && onGround){
-
- velocity.y = jumpPower;
- onGround=false;
+camera.position.y += Math.sin(headBobTime)*0.02;
 
 }
 
 /* 重力 */
 
-velocity.y += gravity*delta;
-bodyY += velocity.y*delta;
+velocityY -= gravity;
+camera.position.y += velocityY;
 
-if(bodyY<=1.7){
+/* 地面判定 */
 
- bodyY=1.7;
- velocity.y=0;
- onGround=true;
+if(camera.position.y < 2){
 
-}
-
-camera.position.y = bodyY;
-
-/* ===== ヘッドボブ ===== */
-
-const moving = direction.length()>0;
-
-if(moving && onGround){
-
- bobTime += delta * bobSpeed * (running ? 1.8 : 1);
-
- camera.position.y =
- bodyY + Math.sin(bobTime)*bobAmount;
+velocityY = 0;
+camera.position.y = 2;
+onGround = true;
 
 }
 
-/* ===== FOV ===== */
+}
 
-const targetFov = running ? sprintFov : baseFov;
+/* =================
+リサイズ
+================= */
 
-camera.fov += (targetFov-camera.fov)*8*delta;
+window.addEventListener("resize",()=>{
+
+camera.aspect = window.innerWidth / window.innerHeight;
 camera.updateProjectionMatrix();
 
-}
+renderer.setSize(window.innerWidth, window.innerHeight);
 
-/* ===== ループ ===== */
+});
+
+/* =================
+ループ
+================= */
 
 function animate(){
 
 requestAnimationFrame(animate);
 
-const delta = clock.getDelta();
-
-update(delta);
+move();
 
 renderer.render(scene,camera);
 
 }
 
 animate();
-
-/* ===== resize ===== */
-
-window.addEventListener("resize",()=>{
-
-camera.aspect = window.innerWidth/window.innerHeight;
-camera.updateProjectionMatrix();
-
-renderer.setSize(window.innerWidth,window.innerHeight);
-
-});
