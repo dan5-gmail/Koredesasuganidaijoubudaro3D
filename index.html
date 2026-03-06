@@ -2,46 +2,187 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>FPS Test</title>
-
+<title>FPS 完全修正版</title>
 <style>
-body{
-margin:0;
-overflow:hidden;
-font-family:sans-serif;
-}
-
-#start{
-position:absolute;
-top:50%;
-left:50%;
-transform:translate(-50%,-50%);
-padding:20px 40px;
-background:#222;
-color:white;
-cursor:pointer;
-}
-
+body { margin:0; overflow:hidden; background:black; }
 #crosshair{
-position:absolute;
-top:50%;
-left:50%;
-width:6px;
-height:6px;
-background:white;
-transform:translate(-50%,-50%);
-border-radius:50%;
-pointer-events:none;
+  position:fixed;
+  top:50%; left:50%;
+  width:20px; height:20px;
+  margin:-10px 0 0 -10px;
+  pointer-events:none;
 }
+#crosshair::before,#crosshair::after{
+  content:""; position:absolute; background:white;
+}
+#crosshair::before{ left:9px; top:0; width:2px; height:20px; }
+#crosshair::after{ top:9px; left:0; width:20px; height:2px; }
 </style>
-</head>
 
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"
+  }
+}
+</script>
+</head>
 <body>
 
-<div id="start">クリックして開始</div>
 <div id="crosshair"></div>
 
-<script type="module" src="main.js"></script>
+<script type="module">
 
+import * as THREE from "three";
+import { PointerLockControls } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/PointerLockControls.js";
+
+/* ========= 基本 ========= */
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x87CEEB);
+
+const camera = new THREE.PerspectiveCamera(75, innerWidth/innerHeight, 0.1, 1000);
+
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth, innerHeight);
+document.body.appendChild(renderer.domElement);
+
+/* ========= 地面 ========= */
+
+const ground = new THREE.Mesh(
+  new THREE.PlaneGeometry(500,500),
+  new THREE.MeshLambertMaterial({color:0x228B22})
+);
+ground.rotation.x = -Math.PI/2;
+scene.add(ground);
+
+scene.add(new THREE.AmbientLight(0xffffff,0.6));
+
+/* ========= FPS ========= */
+
+const controls = new PointerLockControls(camera, document.body);
+scene.add(controls.getObject());
+document.addEventListener("click", ()=>controls.lock());
+
+const player = controls.getObject();
+player.position.set(0,0,5);
+
+/* ⭐ bob専用ノード（内部構造は触らない） */
+
+const bobNode = new THREE.Object3D();
+player.add(bobNode);
+bobNode.add(camera);
+
+const eyeHeight = 1.6;
+bobNode.position.y = eyeHeight;
+
+/* ========= 入力 ========= */
+
+const keys = {};
+document.addEventListener("keydown", e=>keys[e.key.toLowerCase()] = true);
+document.addEventListener("keyup", e=>keys[e.key.toLowerCase()] = false);
+
+/* ========= 物理 ========= */
+
+const velocity = new THREE.Vector3();
+const direction = new THREE.Vector3();
+
+const walkAccel = 40;
+const sprintAccel = 80;
+const friction = 10;
+const gravity = -30;
+const jumpPower = 9;
+
+let bodyY = 0;
+let onGround = true;
+
+/* ========= ヘッドボブ ========= */
+
+let bobTime = 0;
+const bobAmount = 0.3;
+const bobSpeed = 12;
+
+/* ========= FOV ========= */
+
+const baseFov = 75;
+const sprintFov = 95;
+const fovSpeed = 8;
+
+const clock = new THREE.Clock();
+
+/* ========= update ========= */
+
+function update(delta){
+
+  direction.set(0,0,0);
+  if(keys["w"]) direction.z -= 1;
+  if(keys["s"]) direction.z += 1;
+  if(keys["a"]) direction.x -= 1;
+  if(keys["d"]) direction.x += 1;
+  direction.normalize();
+
+  const isSprinting = keys["shift"];
+  const accel = isSprinting ? sprintAccel : walkAccel;
+
+  velocity.x += direction.x * accel * delta;
+  velocity.z += direction.z * accel * delta;
+
+  velocity.x -= velocity.x * friction * delta;
+  velocity.z -= velocity.z * friction * delta;
+
+  controls.moveRight(velocity.x * delta);
+  controls.moveForward(velocity.z * delta);
+
+  velocity.y += gravity * delta;
+  bodyY += velocity.y * delta;
+
+  if(bodyY <= 0){
+    velocity.y = 0;
+    bodyY = 0;
+    onGround = true;
+  }
+
+  if(keys[" "] && onGround){
+    velocity.y = jumpPower;
+    onGround = false;
+  }
+
+  player.position.y = bodyY;
+
+  const speed = Math.sqrt(velocity.x**2 + velocity.z**2);
+  const moving = speed > 0.1;
+
+  if(moving && onGround){
+    bobTime += delta * bobSpeed * (isSprinting ? 1.8 : 1);
+    bobNode.position.y = eyeHeight + Math.sin(bobTime) * bobAmount;
+  }else{
+    bobTime = 0;
+    bobNode.position.y += (eyeHeight - bobNode.position.y) * 8 * delta;
+  }
+
+  const targetFov = isSprinting ? sprintFov : baseFov;
+  camera.fov += (targetFov - camera.fov) * fovSpeed * delta;
+  camera.updateProjectionMatrix();
+}
+
+/* ========= ループ ========= */
+
+function animate(){
+  requestAnimationFrame(animate);
+  const delta = clock.getDelta();
+  update(delta);
+  renderer.render(scene,camera);
+}
+animate();
+
+/* ========= リサイズ ========= */
+
+window.addEventListener("resize",()=>{
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);
+});
+
+</script>
 </body>
 </html>
